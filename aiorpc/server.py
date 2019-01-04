@@ -182,6 +182,8 @@ async def serve(reader, writer):
             # skip the rest of iteration code since we already got an error
             continue
 
+        req_start = datetime.datetime.now()
+
         # Execute the parsed request
         try:
             _logger.debug('calling method: {}'.format(str(method)))
