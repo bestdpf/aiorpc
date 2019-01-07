@@ -23,20 +23,11 @@ class Connection:
         await asyncio.wait_for(self.writer.drain(), timeout)
         _logger.debug('sending {} completed'.format(str(raw_req)))
 
-    async def recvall(self, timeout):
+    async def recvall(self):
         _logger.debug('entered recvall from {}'.format(self.peer))
-        # buffer, line = bytearray(), b''
-        # while not line.endswith(b'\r\n'):
-        #     _logger.debug('receiving data, timeout: {}'.format(timeout))
-        #     line = await asyncio.wait_for(self.reader.readline(), timeout)
-        #     if not line:
-        #         break
-        #     _logger.debug('received data {}'.format(line))
-        #     buffer.extend(line)
-        # _logger.debug('buffer: {}'.format(buffer))
         req = None
         while True:
-            data = await asyncio.wait_for(self.reader.read(SOCKET_RECV_SIZE), timeout)
+            data = await self.reader.read(SOCKET_RECV_SIZE)
             _logger.debug('receiving data {} from {}'.format(data, self.peer))
             if not data:
                 raise IOError('Connection to {} closed'.format(self.peer))

@@ -4,7 +4,7 @@ import asyncio
 
 
 async def do(cli):
-    ret = await cli.call('echo', 'messagexxx')
+    ret = await cli.call_once('echo', 'messagexxx')
     print(f'xxxxx {ret}')
 
 

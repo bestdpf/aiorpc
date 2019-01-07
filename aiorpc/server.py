@@ -146,12 +146,7 @@ async def serve(reader, writer):
     while not conn.is_closed():
         req = None
         try:
-            req = await conn.recvall(_timeout)
-        except asyncio.TimeoutError as te:
-            await asyncio.sleep(3)
-            _logger.warning("Client did not send any data before timeout. Closing connection...")
-            conn.close()
-            continue
+            req = await conn.recvall()
         except IOError as ie:
             break
         except Exception as e:
