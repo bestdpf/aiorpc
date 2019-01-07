@@ -105,7 +105,8 @@ class RPCClient:
             else:
                 response = await response_fut
         except asyncio.TimeoutError:
-                return None
+            _logger.error('rpc {0} {1} timeout'.format(method, args))
+            return None
         finally:
             self._id2fut.pop(msg_id)
 
