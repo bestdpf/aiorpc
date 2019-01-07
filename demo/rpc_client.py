@@ -16,6 +16,11 @@ async def do(cli):
 
 
 def run_client():
+    try:
+        import uvloop
+        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+    except ModuleNotFoundError:
+        pass
     loop = asyncio.get_event_loop()
     client = RPCClient('127.0.0.1', 6000)
     loop.run_until_complete(do(client))

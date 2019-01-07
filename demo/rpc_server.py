@@ -8,7 +8,11 @@ def echo(msg):
 
 
 def run_server():
-
+    try:
+        import uvloop
+        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+    except ModuleNotFoundError:
+        pass
     register("echo", echo)
     coro = asyncio.start_server(serve, '127.0.0.1', 6000)
     server = asyncio.get_event_loop().run_until_complete(coro)
