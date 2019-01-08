@@ -30,7 +30,7 @@ def run_client():
     loop = asyncio.get_event_loop()
     client = RPCClient('127.0.0.1', 6000)
     loop.run_until_complete(client._open_connection())
-    loop.run_until_complete(mulit_do(client, num=10000, cnt=10))
+    loop.run_until_complete(mulit_do(client, num=5000, cnt=20))
     client.close()
 
 
