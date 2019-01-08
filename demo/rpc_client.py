@@ -4,15 +4,21 @@ import asyncio
 import time
 
 
-async def do(cli):
+async def do(cli, cnt=1000):
     start_time = time.time()
-    cnt = 100000
     for i in range(cnt):
-        ret = await cli.call_once('echo', 'messagexxx')
+        ret = await cli.call_once('echo', 'messagexxx', timeout=10)
         # print(f'xxxxx {ret}')
     end_time = time.time()
     time_diff = end_time - start_time
     print(f'speed is {time_diff/cnt}, total cost time is {time_diff}')
+
+
+async def mulit_do(cli, num=10, cnt=1000):
+    jobs = []
+    for i in range(num):
+        jobs.append(do(cli, cnt))
+    await asyncio.gather(*jobs, return_exceptions=True)
 
 
 def run_client():
@@ -23,7 +29,8 @@ def run_client():
         pass
     loop = asyncio.get_event_loop()
     client = RPCClient('127.0.0.1', 6000)
-    loop.run_until_complete(do(client))
+    loop.run_until_complete(client._open_connection())
+    loop.run_until_complete(mulit_do(client, num=5, cnt=1))
     client.close()
 
 

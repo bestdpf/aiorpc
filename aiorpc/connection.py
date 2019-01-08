@@ -19,8 +19,10 @@ class Connection:
     async def sendall(self, raw_req, timeout):
         _logger.debug('sending raw_req {} to {}'.format(
             str(raw_req), self.peer))
+
         self.writer.write(raw_req)
-        await asyncio.wait_for(self.writer.drain(), timeout)
+        await self.writer.drain()
+        # await asyncio.wait_for(self.writer.drain(), timeout)
         _logger.debug('sending {} completed'.format(str(raw_req)))
 
     async def recvall(self):
@@ -29,7 +31,9 @@ class Connection:
         while True:
             data = await self.reader.read(SOCKET_RECV_SIZE)
             _logger.debug('receiving data {} from {}'.format(data, self.peer))
+
             if not data:
+                # print('error')
                 raise IOError('Connection to {} closed'.format(self.peer))
             self.unpacker.feed(data)
             try:

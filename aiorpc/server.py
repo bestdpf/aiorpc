@@ -133,6 +133,42 @@ def _parse_request(req):
     return msg_id, method, args, method_name
 
 
+async def handle_request(conn, req):
+    req_start = datetime.datetime.now()
+    method = None
+    msg_id = None
+    args = None
+    try:
+        _logger.debug('parsing req: {}'.format(str(req)))
+        msg_id, method, args, method_name = _parse_request(req)
+        _logger.debug('parsing completed: {0} {1}'.format(str(req), msg_id))
+    except Exception as e:
+        _logger.error("Exception {} raised when _parse_request {}".format(str(e), req))
+        return
+
+    req_start = datetime.datetime.now()
+
+    # Execute the parsed request
+    try:
+        _logger.debug('calling method: {}'.format(str(method)))
+        ret = method.__call__(*args)
+        if asyncio.iscoroutine(ret):
+            _logger.debug("start to wait_for")
+            ret = await asyncio.wait_for(ret, _timeout)
+        _logger.debug('calling {} completed. result: {}'.format(str(method), str(ret)))
+    except Exception as e:
+        _logger.error("Caught Exception in `{0}`. {1}: {2}".format(method_name, type(e).__name__, str(e)))
+        await _send_error(conn, type(e).__name__, str(e), msg_id)
+        _logger.debug('sending exception {} completed'.format(str(e)))
+    else:
+        _logger.debug('sending result: {}'.format(str(ret)))
+        await _send_result(conn, ret, msg_id)
+        _logger.debug('sending result {} completed'.format(str(ret)))
+
+    req_end = datetime.datetime.now()
+    _logger.info("Method `{0}` took {1}ms".format(method_name, (req_end - req_start).microseconds / 1000))
+
+
 async def serve(reader, writer):
     """Serve function.
     Don't use this outside asyncio.start_server.
@@ -161,40 +197,7 @@ async def serve(reader, writer):
 
             except Exception as e:
                 _logger.error("Error when receiving req: {}".format(str(e)))
+        asyncio.create_task(handle_request(conn, req))
 
-                req_start = datetime.datetime.now()
 
-        method = None
-        msg_id = None
-        args = None
-        try:
-            _logger.debug('parsing req: {}'.format(str(req)))
-            msg_id, method, args, method_name = _parse_request(req)
-            _logger.debug('parsing completed: {}'.format(str(req)))
-        except Exception as e:
-            _logger.error("Exception {} raised when _parse_request {}".format(str(e), req))
-            
-            # skip the rest of iteration code since we already got an error
-            continue
 
-        req_start = datetime.datetime.now()
-
-        # Execute the parsed request
-        try:
-            _logger.debug('calling method: {}'.format(str(method)))
-            ret = method.__call__(*args)
-            if asyncio.iscoroutine(ret):
-                _logger.debug("start to wait_for")
-                ret = await asyncio.wait_for(ret, _timeout)
-            _logger.debug('calling {} completed. result: {}'.format(str(method), str(ret)))
-        except Exception as e:
-            _logger.error("Caught Exception in `{0}`. {1}: {2}".format(method_name, type(e).__name__, str(e)))
-            await _send_error(conn, type(e).__name__, str(e), msg_id)
-            _logger.debug('sending exception {} completed'.format(str(e)))
-        else:
-            _logger.debug('sending result: {}'.format(str(ret)))
-            await _send_result(conn, ret, msg_id)
-            _logger.debug('sending result {} completed'.format(str(ret)))
-
-        req_end = datetime.datetime.now()
-        _logger.info("Method `{0}` took {1}ms".format(method_name, (req_end - req_start).microseconds / 1000))

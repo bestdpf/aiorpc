@@ -70,7 +70,9 @@ class RPCClient:
         self._conn = Connection(reader, writer,
                                 msgpack.Unpacker(encoding=self._unpack_encoding, **self._unpack_params))
         # 加入background recv任务
-        self._background_recv_task = asyncio.create_task(self._recv_on_background())
+        if self._background_recv_task is None:
+            self._background_recv_task = asyncio.create_task(self._recv_on_background())
+        # print(f'background recv ...')
         _logger.debug("Connection to {}:{} established".format(self._host, self._port))
 
     async def call_once(self, method, *args, timeout=3):
@@ -91,7 +93,7 @@ class RPCClient:
             await self._open_connection()
 
         try:
-            _logger.debug('Sending req: {}'.format(req))
+            _logger.debug('Sending req: {0} {1}'.format(req, msg_id))
             await self._conn.sendall(req, self._timeout)
             _logger.debug('Sending complete')
         except asyncio.TimeoutError as te:
@@ -168,7 +170,7 @@ class RPCClient:
                 try:
                     _logger.debug('receiving result from server')
                     # TODO 只是为了服务器不卡死吧
-                    # await asyncio.sleep(BACKGROUND_RECV_INTERVAL)
+                    await asyncio.sleep(BACKGROUND_RECV_INTERVAL)
                     response = await self._conn.recvall()
                     _logger.debug('receiving result completed')
                 # TODO 这里需要改一下，范围太广
@@ -192,6 +194,7 @@ class RPCClient:
 
         finally:
             if self._conn and not self._conn.is_closed():
+                self._background_recv_task = None
                 self._background_recv_task = asyncio.create_task(self._recv_on_background())
 
     async def __aenter__(self):
