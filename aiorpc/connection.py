@@ -29,9 +29,15 @@ class Connection:
         _logger.debug('entered recvall from {}'.format(self.peer))
         req = None
         while True:
+            # 可能有老的数据没有get
+            try:
+                req = next(self.unpacker)
+                return req
+            except StopIteration:
+                pass
             data = await self.reader.read(SOCKET_RECV_SIZE)
             _logger.debug('receiving data {} from {}'.format(data, self.peer))
-
+            # print(f'recv data {data}')
             if not data:
                 # print('error')
                 raise IOError('Connection to {} closed'.format(self.peer))
@@ -43,6 +49,7 @@ class Connection:
                 continue
         _logger.debug('received req from {} : {}'.format(self.peer, req))
         _logger.debug('exiting recvall from {}'.format(self.peer))
+        # print(f'get req {req}')
         return req
 
     def close(self):
