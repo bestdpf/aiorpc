@@ -21,5 +21,13 @@ class EnhancedRPCError(Exception):
         Exception.__init__(self, "{0}: {1}".format(parent, message))
 
 
+class CtrlRPCError(Exception):
+    def __init__(self, parent, message):
+        self.parent = parent
+        self.message = message
+
+        Exception.__init__(self, "{0}: {1}".format(parent, message))
+
+
 class MethodRegisteredError(Exception):
     pass

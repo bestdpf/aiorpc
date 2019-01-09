@@ -2,6 +2,7 @@
 import asyncio
 import msgpack
 import datetime
+import inspect
 
 from aiorpc.constants import MSGPACKRPC_REQUEST, MSGPACKRPC_RESPONSE
 from aiorpc.exceptions import MethodNotFoundError, RPCProtocolError, MethodRegisteredError
@@ -85,7 +86,7 @@ def set_timeout(timeout):
     
     
 async def _send_error(conn, exception, error, msg_id):
-    response = (MSGPACKRPC_RESPONSE, msg_id, (exception, error), None)
+    response = (MSGPACKRPC_RESPONSE, msg_id, (exception, error), None, None)
     try:
         await conn.sendall(msgpack.packb(response, encoding=_pack_encoding, **_pack_params),
                            _timeout)
@@ -98,9 +99,23 @@ async def _send_error(conn, exception, error, msg_id):
         ))
 
 
+async def _send_ctrl(conn, ctrl, ctrl_detail, msg_id):
+    response = (MSGPACKRPC_RESPONSE, msg_id, None, None, (ctrl, ctrl_detail))
+    try:
+        await conn.sendall(msgpack.packb(response, encoding=_pack_encoding, **_pack_params),
+                           _timeout)
+    except asyncio.TimeoutError as te:
+        _logger.error("Timeout when _send_ctrl {} to {}".format(
+            ctrl, conn.writer.get_extra_info('peername')))
+    except Exception as e:
+        _logger.error("Exception {} raised when _send_error {} to {}".format(
+            str(e), ctrl, conn.writer.get_extra_info("peername")
+        ))
+
+
 async def _send_result(conn, result, msg_id):
     _logger.debug('entering _send_result')
-    response = (MSGPACKRPC_RESPONSE, msg_id, None, result)
+    response = (MSGPACKRPC_RESPONSE, msg_id, None, result, None)
     try:
         _logger.debug('begin to sendall')
         ret = msgpack.packb(response, encoding=_pack_encoding, **_pack_params)
@@ -116,10 +131,10 @@ async def _send_result(conn, result, msg_id):
 
 
 def _parse_request(req):
-    if len(req) != 4 or req[0] != MSGPACKRPC_REQUEST:
+    if len(req) != 6 or req[0] != MSGPACKRPC_REQUEST:
         raise RPCProtocolError('Invalid protocol')
 
-    _, msg_id, method_name, args = req
+    _, msg_id, method_name, args, timeout, streamed = req
     
     _method_soup = method_name.split('.')
     if len(_method_soup) == 1:
@@ -130,31 +145,41 @@ def _parse_request(req):
     if not method:
         raise MethodNotFoundError("No such method {}".format(method_name))
 
-    return msg_id, method, args, method_name
+    return msg_id, method, args, method_name, timeout, streamed
 
 
 async def handle_request(conn, req):
-    req_start = datetime.datetime.now()
     method = None
     msg_id = None
     args = None
+    timeout = 0
     try:
         _logger.debug('parsing req: {}'.format(str(req)))
-        msg_id, method, args, method_name = _parse_request(req)
+        msg_id, method, args, method_name, timeout, streamed = _parse_request(req)
         _logger.debug('parsing completed: {0} {1}'.format(str(req), msg_id))
     except Exception as e:
         _logger.error("Exception {} raised when _parse_request {}".format(str(e), req))
         return
+    else:
+        if streamed:
+            # stream指令暂时不用timeout
+            return await handle_stream_request(conn, msg_id, method, args, method_name)
+        else:
+            return await handle_once_request(conn, msg_id, method, args, method_name, timeout)
 
+
+async def handle_once_request(conn, msg_id, method, args, method_name, timeout):
     req_start = datetime.datetime.now()
-
     # Execute the parsed request
     try:
         _logger.debug('calling method: {}'.format(str(method)))
         ret = method.__call__(*args)
         if asyncio.iscoroutine(ret):
             _logger.debug("start to wait_for")
-            ret = await asyncio.wait_for(ret, _timeout)
+            if timeout > 0:
+                ret = await asyncio.wait_for(ret, timeout)
+            else:
+                ret = await ret
         _logger.debug('calling {} completed. result: {}'.format(str(method), str(ret)))
     except Exception as e:
         _logger.error("Caught Exception in `{0}`. {1}: {2}".format(method_name, type(e).__name__, str(e)))
@@ -164,6 +189,33 @@ async def handle_request(conn, req):
         _logger.debug('sending result: {}'.format(str(ret)))
         await _send_result(conn, ret, msg_id)
         _logger.debug('sending result {} completed'.format(str(ret)))
+
+    req_end = datetime.datetime.now()
+    _logger.info("Method `{0}` took {1}ms".format(method_name, (req_end - req_start).microseconds / 1000))
+
+
+async def handle_stream_request(conn, msg_id, method, args, method_name):
+    req_start = datetime.datetime.now()
+
+    # Execute the parsed request
+    try:
+        _logger.debug('calling method: {}'.format(str(method)))
+        if not inspect.isasyncgenfunction(method):
+            await _send_error(conn, 'not stream coroutine', 'not stream coroutine', msg_id)
+            _logger.error(f'the stream method {method} must be coroutine function!!!')
+        else:
+            async for ret in method.__call__(*args):
+                await _send_result(conn, ret, msg_id)
+            # 暂时可以用None result替代控制包
+            await _send_result(conn, None, msg_id)
+            # await _send_ctrl(conn, 'ctrl', 'stop_stream', msg_id)
+        _logger.debug('calling stream {} completed'.format(str(method)))
+    except Exception as e:
+        _logger.error("Caught Exception in `{0}`. {1}: {2}".format(method_name, type(e).__name__, str(e)))
+        await _send_error(conn, type(e).__name__, str(e), msg_id)
+        _logger.debug('sending exception {} completed'.format(str(e)))
+    finally:
+        pass
 
     req_end = datetime.datetime.now()
     _logger.info("Method `{0}` took {1}ms".format(method_name, (req_end - req_start).microseconds / 1000))

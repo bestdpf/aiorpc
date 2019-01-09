@@ -3,8 +3,14 @@ from aiorpc import register, serve
 import asyncio
 
 
-def echo(msg):
+async def echo(msg):
     return msg
+
+
+async def echo_stream(msg):
+    for i in range(10):
+        await asyncio.sleep(0)
+        yield f'{msg}-{i}'
 
 
 def run_server():
@@ -14,6 +20,7 @@ def run_server():
     except ModuleNotFoundError:
         pass
     register("echo", echo)
+    register('echo_stream', echo_stream)
     coro = asyncio.start_server(serve, '127.0.0.1', 6000)
     server = asyncio.get_event_loop().run_until_complete(coro)
 

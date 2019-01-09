@@ -6,7 +6,7 @@ import logging
 from aiorpc.connection import Connection
 from aiorpc.log import rootLogger
 from aiorpc.constants import MSGPACKRPC_RESPONSE, MSGPACKRPC_REQUEST, BACKGROUND_RECV_INTERVAL
-from aiorpc.exceptions import RPCProtocolError, RPCError, EnhancedRPCError
+from aiorpc.exceptions import RPCProtocolError, RPCError, EnhancedRPCError, CtrlRPCError
 
 __all__ = ['RPCClient']
 
@@ -84,7 +84,7 @@ class RPCClient:
         """
 
         _logger.debug('creating request')
-        req, msg_id = self._create_request(method, args)
+        req, msg_id = self._create_request(method, args, timeout, False)
         response_fut = asyncio.Future()
         # TODO 可能有点泄漏？
         self._id2fut.update({msg_id: response_fut})
@@ -123,7 +123,7 @@ class RPCClient:
         """
 
         _logger.debug('creating request')
-        req, msg_id = self._create_request(method, args)
+        req, msg_id = self._create_request(method, args, 0, True)
 
         if self._conn is None or self._conn.is_closed():
             await self._open_connection()
@@ -142,27 +142,35 @@ class RPCClient:
             response_fut = asyncio.Future()
             self._id2fut.update({msg_id: response_fut})
             response = await response_fut
+            # 对于流指令来讲，None就是结束
+            if response is None:
+                return
             yield response
 
-    def _create_request(self, method, args):
+    def _create_request(self, method, args, timeout=0, streamed=False):
         self._msg_id += 1
 
-        req = (MSGPACKRPC_REQUEST, self._msg_id, method, args)
+        req = (MSGPACKRPC_REQUEST, self._msg_id, method, args, timeout, streamed)
 
         return msgpack.packb(req, encoding=self._pack_encoding, **self._pack_params), self._msg_id
 
     def _parse_response(self, response):
-        if (len(response) != 4 or response[0] != MSGPACKRPC_RESPONSE):
+        if (len(response) != 5 or response[0] != MSGPACKRPC_RESPONSE):
             raise RPCProtocolError('Invalid protocol')
 
-        (_, msg_id, error, result) = response
+        (_, msg_id, error, result, ctrl) = response
+
+        if ctrl and len(ctrl) == 2:
+            # 控制包，暂时只有流的停止
+            # raise CtrlRPCError(*ctrl)
+            return result, msg_id, ctrl
 
         if error and len(error) == 2:
             raise EnhancedRPCError(*error)
         elif error:
             raise RPCError(error)
 
-        return result, msg_id
+        return result, msg_id, ctrl
 
     async def _recv_on_background(self):
         try:
@@ -185,13 +193,14 @@ class RPCClient:
                     logging.debug('Protocol error, received unexpected data: {}'.format(response))
                     raise RPCProtocolError('Invalid protocol')
 
-                response, msg_id = self._parse_response(response)
+                response, msg_id, ctrl = self._parse_response(response)
                 # print(f'get resp {response} {msg_id} {self._id2fut}')
                 if msg_id in self._id2fut:
                     self._id2fut[msg_id].set_result(response)
                 else:
                     logging.debug(f'Recv unknow msg {response} for {msg_id}')
-
+        except ConnectionError:
+            await self._open_connection()
         finally:
             if self._conn and not self._conn.is_closed():
                 self._background_recv_task = None
