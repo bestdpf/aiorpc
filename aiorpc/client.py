@@ -7,6 +7,7 @@ from aiorpc.connection import Connection
 from aiorpc.log import rootLogger
 from aiorpc.constants import MSGPACKRPC_RESPONSE, MSGPACKRPC_REQUEST, BACKGROUND_RECV_INTERVAL
 from aiorpc.exceptions import RPCProtocolError, RPCError, EnhancedRPCError, CtrlRPCError
+from concurrent.futures._base import CancelledError
 
 __all__ = ['RPCClient']
 
@@ -214,6 +215,8 @@ class RPCClient:
         except ConnectionError:
             pass
             # await self._open_connection()
+        except CancelledError:
+            pass
         finally:
             if self._conn and not self._conn.is_closed():
                 self._background_recv_task = None
