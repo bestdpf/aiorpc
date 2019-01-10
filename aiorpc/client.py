@@ -61,12 +61,20 @@ class RPCClient:
     def close(self):
         try:
             self._conn.close()
+            if self._background_recv_task:
+                self._background_recv_task.cancel()
+                self._background_recv_task = None
         except AttributeError:
             pass
 
     async def _open_connection(self):
         _logger.debug("connect to {}:{}...".format(self._host, self._port))
         reader, writer = await asyncio.open_connection(self._host, self._port, loop=self._loop)
+
+        # 这里做的检查才是有效的，不然await之后会有问题
+        if self._conn and not self._conn.is_closed():
+            return
+
         self._conn = Connection(reader, writer,
                                 msgpack.Unpacker(encoding=self._unpack_encoding, **self._unpack_params))
         # 加入background recv任务
@@ -174,11 +182,14 @@ class RPCClient:
 
     async def _recv_on_background(self):
         try:
+            print(f'start recv on background')
             while True:
                 try:
                     _logger.debug('receiving result from server')
                     # TODO 只是为了服务器不卡死吧
                     await asyncio.sleep(BACKGROUND_RECV_INTERVAL)
+                    if not self._conn or self._conn.is_closed():
+                        return
                     response = await self._conn.recvall()
                     _logger.debug('receiving result completed')
                 # TODO 这里需要改一下，范围太广

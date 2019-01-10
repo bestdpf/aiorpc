@@ -1,6 +1,7 @@
 from aiorpc import register, serve
 
 import asyncio
+import sys
 
 
 async def echo(msg):
@@ -14,11 +15,6 @@ async def echo_stream(msg):
 
 
 def run_server():
-    try:
-        import uvloop
-        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-    except ModuleNotFoundError:
-        pass
     # asyncio.set_event_loop(asyncio.ProactorEventLoop())
     register("echo", echo)
     register('echo_stream', echo_stream)
@@ -33,4 +29,11 @@ def run_server():
 
 
 if __name__ == '__main__':
+    try:
+        import uvloop
+        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+    except ModuleNotFoundError:
+        pass
+    if sys.platform == 'win32':
+        asyncio.set_event_loop(asyncio.ProactorEventLoop())
     run_server()
