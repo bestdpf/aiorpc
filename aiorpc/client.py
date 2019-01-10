@@ -194,6 +194,8 @@ class RPCClient:
                 # TODO 这里需要改一下，范围太广
                 except Exception as e:
                     self._conn.reader.set_exception(e)
+                    import traceback
+                    traceback.print_exc()
                     raise e
 
                 if response is None:
@@ -210,7 +212,8 @@ class RPCClient:
                 else:
                     logging.debug(f'Recv unknow msg {response} for {msg_id}')
         except ConnectionError:
-            await self._open_connection()
+            pass
+            # await self._open_connection()
         finally:
             if self._conn and not self._conn.is_closed():
                 self._background_recv_task = None

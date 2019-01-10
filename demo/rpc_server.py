@@ -30,6 +30,7 @@ def run_server():
 
 if __name__ == '__main__':
     try:
+        pass
         import uvloop
         asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     except ModuleNotFoundError:
