@@ -181,41 +181,45 @@ class RPCClient:
 
         return result, msg_id, ctrl
 
+    async def _process_one_request(self):
+        while True:
+            try:
+                _logger.debug('receiving result from server')
+                # TODO 只是为了服务器不卡死吧
+                await asyncio.sleep(BACKGROUND_RECV_INTERVAL)
+                if not self._conn or self._conn.is_closed():
+                    return
+                response = await self._conn.recvall()
+                _logger.debug('receiving result completed')
+            # TODO 这里需要改一下，范围太广
+            except Exception as e:
+                self._conn.reader.set_exception(e)
+                import traceback
+                traceback.print_exc()
+                raise e
+
+            if response is None:
+                raise IOError("Connection closed")
+
+            if type(response) != tuple:
+                logging.debug('Protocol error, received unexpected data: {}'.format(response))
+                raise RPCProtocolError('Invalid protocol')
+
+            response, msg_id, ctrl = self._parse_response(response)
+            # print(f'get resp {response} {msg_id} {self._id2fut}')
+            if msg_id in self._id2fut:
+                self._id2fut[msg_id].set_result(response)
+            else:
+                logging.debug(f'Recv unknow msg {response} for {msg_id}')
+
     async def _recv_on_background(self):
         try:
-            while True:
-                try:
-                    _logger.debug('receiving result from server')
-                    # TODO 只是为了服务器不卡死吧
-                    await asyncio.sleep(BACKGROUND_RECV_INTERVAL)
-                    if not self._conn or self._conn.is_closed():
-                        return
-                    response = await self._conn.recvall()
-                    _logger.debug('receiving result completed')
-                # TODO 这里需要改一下，范围太广
-                except Exception as e:
-                    self._conn.reader.set_exception(e)
-                    import traceback
-                    traceback.print_exc()
-                    raise e
-
-                if response is None:
-                    raise IOError("Connection closed")
-
-                if type(response) != tuple:
-                    logging.debug('Protocol error, received unexpected data: {}'.format(response))
-                    raise RPCProtocolError('Invalid protocol')
-
-                response, msg_id, ctrl = self._parse_response(response)
-                # print(f'get resp {response} {msg_id} {self._id2fut}')
-                if msg_id in self._id2fut:
-                    self._id2fut[msg_id].set_result(response)
-                else:
-                    logging.debug(f'Recv unknow msg {response} for {msg_id}')
+            await asyncio.shield(self._process_one_request())
         except ConnectionError:
             pass
             # await self._open_connection()
         except CancelledError:
+            # print(f'process task is cancelled')
             pass
         else:
             if self._conn and not self._conn.is_closed():
