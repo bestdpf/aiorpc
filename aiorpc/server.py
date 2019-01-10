@@ -184,6 +184,8 @@ async def handle_once_request(conn, msg_id, method, args, method_name, timeout):
                 ret = await ret
         _logger.debug('calling {} completed. result: {}'.format(str(method), str(ret)))
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         _logger.error("Caught Exception in `{0}`. {1}: {2}".format(method_name, type(e).__name__, str(e)))
         await _send_error(conn, type(e).__name__, str(e), msg_id)
         _logger.debug('sending exception {} completed'.format(str(e)))
@@ -213,6 +215,8 @@ async def handle_stream_request(conn, msg_id, method, args, method_name):
             # await _send_ctrl(conn, 'ctrl', 'stop_stream', msg_id)
         _logger.debug('calling stream {} completed'.format(str(method)))
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         _logger.error("Caught Exception in `{0}`. {1}: {2}".format(method_name, type(e).__name__, str(e)))
         await _send_error(conn, type(e).__name__, str(e), msg_id)
         _logger.debug('sending exception {} completed'.format(str(e)))

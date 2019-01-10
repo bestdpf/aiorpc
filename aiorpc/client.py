@@ -217,7 +217,7 @@ class RPCClient:
             # await self._open_connection()
         except CancelledError:
             pass
-        finally:
+        else:
             if self._conn and not self._conn.is_closed():
                 self._background_recv_task = None
                 self._background_recv_task = asyncio.create_task(self._recv_on_background())

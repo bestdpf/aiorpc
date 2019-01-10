@@ -37,7 +37,9 @@ async def multi_do_stream(cli, num=10):
     jobs = []
     for i in range(num):
         jobs.append(do_stream(cli))
-    ret = await asyncio.gather(*jobs, return_exceptions=False)
+    ret = await asyncio.gather(*jobs, return_exceptions=True)
+    print(f'ret is {ret}')
+    
 
 
 async def run_client():
@@ -54,7 +56,8 @@ async def multi_run_client(num=100):
     job = []
     for i in range(num):
         job.append(run_client())
-    await asyncio.gather(*job, return_exceptions=True)
+    ret = await asyncio.gather(*job, return_exceptions=True)
+    print(f'ret is {ret}')
 
 if __name__ == '__main__':
     try:
@@ -65,5 +68,5 @@ if __name__ == '__main__':
         pass
     if sys.platform == 'win32':
         asyncio.set_event_loop(asyncio.ProactorEventLoop())
-    asyncio.get_event_loop().run_until_complete(multi_run_client(1000))
+    asyncio.get_event_loop().run_until_complete(multi_run_client(500))
 
