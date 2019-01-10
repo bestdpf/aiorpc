@@ -18,11 +18,11 @@ async def do_stream(cli):
     start_time = time.time()
     cnt = 0
     async for ret in cli.call_stream('echo_stream', 'stream message'):
-        print(f'stream ret is {ret}')
+        # print(f'stream ret is {ret}')
         cnt += 1
     end_time = time.time()
     time_diff = end_time - start_time
-    print(f'speed is {time_diff/cnt}, total cost time is {time_diff}')
+    print(f'{cli._conn.writer._transport._extra} {cnt} speed is {time_diff/cnt}, total cost time is {time_diff}')
 
 
 async def multi_do(cli, num=10, cnt=1000):
@@ -48,7 +48,7 @@ def run_client():
     loop = asyncio.get_event_loop()
     client = RPCClient('127.0.0.1', 6000)
     loop.run_until_complete(client._open_connection())
-    loop.run_until_complete(multi_do_stream(client, 5000))
+    loop.run_until_complete(multi_do_stream(client, 8000))
     client.close()
 
 

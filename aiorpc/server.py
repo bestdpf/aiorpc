@@ -125,6 +125,8 @@ async def _send_result(conn, result, msg_id):
         _logger.error("Timeout when _send_result {} to {}".format(
             str(result), conn.writer.get_extra_info('peername')))
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         _logger.error("Exception {} raised when _send_result {} to {}".format(
             str(e), str(result), conn.writer.get_extra_info("peername")
         ))

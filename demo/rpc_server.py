@@ -19,6 +19,7 @@ def run_server():
         asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     except ModuleNotFoundError:
         pass
+    # asyncio.set_event_loop(asyncio.ProactorEventLoop())
     register("echo", echo)
     register('echo_stream', echo_stream)
     coro = asyncio.start_server(serve, '127.0.0.1', 6000)

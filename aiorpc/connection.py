@@ -21,7 +21,11 @@ class Connection:
             str(raw_req), self.peer))
 
         self.writer.write(raw_req)
-        await self.writer.drain()
+        try:
+            pass
+            # await self.writer.drain()
+        except AssertionError:
+            pass
         # await asyncio.wait_for(self.writer.drain(), timeout)
         _logger.debug('sending {} completed'.format(str(raw_req)))
 
