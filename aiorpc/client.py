@@ -183,7 +183,6 @@ class RPCClient:
 
     async def _recv_on_background(self):
         try:
-            print(f'start recv on background')
             while True:
                 try:
                     _logger.debug('receiving result from server')
