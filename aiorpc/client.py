@@ -61,11 +61,19 @@ class RPCClient:
 
     def close(self):
         try:
-            self._conn.close()
+            if self._conn:
+                self._conn.close()
             if self._background_recv_task:
                 self._background_recv_task.cancel()
                 self._background_recv_task = None
+            for _, fut in self._id2fut.items():
+                if not fut.done():
+                    fut.set_result(None)
+            self._id2fut.clear()
+            # print('close connection')
         except AttributeError:
+            import traceback
+            traceback.print_exc()
             pass
 
     async def _open_connection(self):
@@ -103,9 +111,6 @@ class RPCClient:
 
         _logger.debug('creating request')
         req, msg_id = self._create_request(method, args, timeout, False)
-        response_fut = asyncio.Future()
-        # TODO 可能有点泄漏？
-        self._id2fut.update({msg_id: response_fut})
 
         if self._conn is None or self._conn.is_closed():
             await self._open_connection()
@@ -120,6 +125,9 @@ class RPCClient:
         except Exception as e:
             raise e
         try:
+            response_fut = asyncio.Future()
+            # TODO 可能有点泄漏？
+            self._id2fut.update({msg_id: response_fut})
             if timeout:
                 response = await asyncio.wait_for(response_fut, timeout=timeout)
             else:
@@ -128,7 +136,7 @@ class RPCClient:
             _logger.error('rpc {0} {1} timeout'.format(method, args))
             return None
         finally:
-            self._id2fut.pop(msg_id)
+            self._id2fut.pop(msg_id, None)
 
         return response
 
@@ -156,14 +164,17 @@ class RPCClient:
         except Exception as e:
             raise e
 
-        while True:
-            response_fut = asyncio.Future()
-            self._id2fut.update({msg_id: response_fut})
-            response = await response_fut
-            # 对于流指令来讲，None就是结束
-            if response is None:
-                return
-            yield response
+        try:
+            while True:
+                response_fut = asyncio.Future()
+                self._id2fut.update({msg_id: response_fut})
+                response = await response_fut
+                # 对于流指令来讲，None就是结束
+                if response is None:
+                    return
+                yield response
+        finally:
+            self._id2fut.pop(msg_id, None)
 
     def _create_request(self, method, args, timeout=0, streamed=False):
         self._msg_id += 1
@@ -225,18 +236,25 @@ class RPCClient:
         try:
             await asyncio.shield(self._process_one_request())
         except ConnectionError:
+            print('connection error')
             pass
+            self.close()
             # await self._open_connection()
         except CancelledError:
-            # print(f'process task is cancelled')
+            print(f'process task is cancelled')
+            # self.close()
             pass
         except IOError:
             print(f'connection lost')
+            # self.close()
             pass
         else:
             if self._conn and not self._conn.is_closed():
                 self._background_recv_task = None
                 self._background_recv_task = asyncio.create_task(self._recv_on_background())
+            else:
+                # self.close()
+                print(f'stop recv')
 
     async def __aenter__(self):
         await self._open_connection()
