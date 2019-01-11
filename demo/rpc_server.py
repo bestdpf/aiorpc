@@ -24,6 +24,12 @@ def run_server():
     try:
         asyncio.get_event_loop().run_forever()
     except KeyboardInterrupt:
+        import objgraph
+        objgraph.show_most_common_types(limit=50)
+        import gc
+        gc.set_debug(gc.DEBUG_LEAK)
+        print('='*10)
+        print(gc.garbage)
         server.close()
         asyncio.get_event_loop().run_until_complete(server.wait_closed())
 
