@@ -17,13 +17,20 @@ async def do(cli, cnt=1000):
 
 async def do_stream(cli):
     start_time = time.time()
-    cnt = 0
-    async for ret in cli.call_stream('echo_stream', 'stream message'):
-        # print(f'stream ret is {ret}')
-        cnt += 1
+    try:
+        cnt = 0
+        async for ret in cli.call_stream('echo_stream', 'stream message'):
+            # print(f'stream ret is {ret}')
+            cnt += 1
+    except:
+        import traceback
+        traceback.print_exc()
     end_time = time.time()
     time_diff = end_time - start_time
-    print(f'{cnt} speed is {time_diff/cnt}, total cost time is {time_diff}')
+    if cnt == 10:
+        print(f'{cnt} speed is {time_diff/cnt}, total cost time is {time_diff}')
+    else:
+        print(f'error cnt is {cnt}')
 
 
 async def multi_do(cli, num=10, cnt=1000):
@@ -38,17 +45,20 @@ async def multi_do_stream(cli, num=10):
     for i in range(num):
         jobs.append(do_stream(cli))
     ret = await asyncio.gather(*jobs, return_exceptions=True)
-    print(f'ret is {ret}')
+    print(f'multi do stream ret is {ret}')
     
-
 
 async def run_client():
 
-    loop = asyncio.get_event_loop()
-    client = RPCClient('127.0.0.1', 6000)
-    # await client._open_connection()
-    await multi_do_stream(client, 5)
-    client.close()
+    try:
+        loop = asyncio.get_event_loop()
+        client = RPCClient('127.0.0.1', 6000)
+        # await client._open_connection()
+        await multi_do_stream(client, 5)
+        client.close()
+    except:
+        import traceback
+        traceback.print_exc()
 
 
 async def multi_run_client(num=100):
@@ -57,7 +67,7 @@ async def multi_run_client(num=100):
     for i in range(num):
         job.append(run_client())
     ret = await asyncio.gather(*job, return_exceptions=True)
-    print(f'ret is {ret}')
+    print(f'multi run client ret is {ret}')
 
 if __name__ == '__main__':
     try:
