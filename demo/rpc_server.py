@@ -10,7 +10,7 @@ async def echo(msg):
 
 async def echo_stream(msg):
     for i in range(10):
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.2)
         yield f'{msg}-{i}'
 
 

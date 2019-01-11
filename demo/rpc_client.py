@@ -47,7 +47,7 @@ async def run_client():
     loop = asyncio.get_event_loop()
     client = RPCClient('127.0.0.1', 6000)
     # await client._open_connection()
-    await multi_do_stream(client, 50)
+    await multi_do_stream(client, 5)
     client.close()
 
 
