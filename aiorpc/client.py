@@ -242,11 +242,11 @@ class RPCClient:
             # await self._open_connection()
         except CancelledError:
             print(f'process task is cancelled')
-            # self.close()
+            self.close()
             pass
         except IOError:
             print(f'connection lost')
-            # self.close()
+            self.close()
             pass
         else:
             if self._conn and not self._conn.is_closed():
