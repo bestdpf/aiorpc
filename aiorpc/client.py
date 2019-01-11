@@ -5,7 +5,7 @@ import logging
 
 from aiorpc.connection import Connection
 from aiorpc.log import rootLogger
-from aiorpc.constants import MSGPACKRPC_RESPONSE, MSGPACKRPC_REQUEST, BACKGROUND_RECV_INTERVAL
+from aiorpc.constants import MSGPACKRPC_RESPONSE, MSGPACKRPC_REQUEST, BACKGROUND_RECV_INTERVAL, TRY_CONNECT_TIME
 from aiorpc.exceptions import RPCProtocolError, RPCError, EnhancedRPCError, CtrlRPCError
 from concurrent.futures._base import CancelledError
 
@@ -70,7 +70,16 @@ class RPCClient:
 
     async def _open_connection(self):
         _logger.debug("connect to {}:{}...".format(self._host, self._port))
-        reader, writer = await asyncio.open_connection(self._host, self._port, loop=self._loop)
+        try_cnt = 0
+        while try_cnt < TRY_CONNECT_TIME:
+            try:
+                try_cnt += 1
+                reader, writer = await asyncio.open_connection(self._host, self._port, loop=self._loop)
+                break
+            except ConnectionError as e:
+                print(f'connection error when open_connection try cnt is {try_cnt}')
+                if try_cnt >= TRY_CONNECT_TIME:
+                    raise e
 
         # 这里做的检查才是有效的，不然await之后会有问题
         if self._conn and not self._conn.is_closed():
@@ -81,7 +90,7 @@ class RPCClient:
         # 加入background recv任务
         if self._background_recv_task is None:
             self._background_recv_task = asyncio.create_task(self._recv_on_background())
-        # print(f'background recv ...')
+        # print(f'reopen connection ...')
         _logger.debug("Connection to {}:{} established".format(self._host, self._port))
 
     async def call_once(self, method, *args, timeout=3):
@@ -195,7 +204,7 @@ class RPCClient:
             except Exception as e:
                 self._conn.reader.set_exception(e)
                 import traceback
-                traceback.print_exc()
+                # traceback.print_exc()
                 raise e
 
             if response is None:
@@ -220,6 +229,9 @@ class RPCClient:
             # await self._open_connection()
         except CancelledError:
             # print(f'process task is cancelled')
+            pass
+        except IOError:
+            print(f'connection lost')
             pass
         else:
             if self._conn and not self._conn.is_closed():
