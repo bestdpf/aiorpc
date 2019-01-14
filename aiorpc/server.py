@@ -127,6 +127,8 @@ async def _send_result(conn, result, msg_id):
     except Exception as e:
         import traceback
         traceback.print_exc()
+        # here is dangerous, as upper application transaction may rely on the result.
+        # This should never happen if we want something like distributed transaction!!!!
         _logger.error("Exception {} raised when _send_result {} to {}".format(
             str(e), str(result), conn.writer.get_extra_info("peername")
         ))
