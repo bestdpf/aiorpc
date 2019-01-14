@@ -119,4 +119,20 @@ Documentation is available at http://aiorpc.readthedocs.org/.
 
 Bugs
 -------------
-1. On windows, when performing pressure testing, OSError(22, 'Network Unavaliable') is raised. It seems only happening on WIN32.
+1. On windows, when performing pressure testing, OSError(22, 'Network Unavaliable') is raised. It seems only happen on WIN32.
+
+.. code-block::
+
+    Task exception was never retrieved
+    future: <Task finished coro=<IocpProactor.accept.<locals>.accept_coro() done, defined at C:\Users\duanpengfei\AppData\Local\Programs\Python\Python37\lib\asyncio\windows_events.py:496> exception=OSError(22, '指定的网络名不再可用。', None, 64, None)>
+    Traceback (most recent call last):
+      File "C:\Users\duanpengfei\AppData\Local\Programs\Python\Python37\lib\asyncio\windows_events.py", line 499, in accept_coro
+        await future
+      File "C:\Users\duanpengfei\AppData\Local\Programs\Python\Python37\lib\asyncio\windows_events.py", line 732, in _poll
+        value = callback(transferred, key, ov)
+      File "C:\Users\duanpengfei\AppData\Local\Programs\Python\Python37\lib\asyncio\windows_events.py", line 488, in finish_accept
+        ov.getresult()
+    OSError: [WinError 64] 指定的网络名不再可用。
+    Accept failed on a socket
+    socket: <socket.socket fd=196, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=6, laddr=('127.0.0.1', 6000)>
+
