@@ -115,3 +115,8 @@ Documentation
 -------------
 
 Documentation is available at http://aiorpc.readthedocs.org/.
+
+
+Bugs
+-------------
+1. On windows, when performing pressure testing, OSError(22, 'Network Unavaliable') is raised. It seems only happening on WIN32.

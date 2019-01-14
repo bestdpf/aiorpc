@@ -21,8 +21,27 @@ def run_server():
     coro = asyncio.start_server(serve, '127.0.0.1', 6000)
     server = asyncio.get_event_loop().run_until_complete(coro)
 
+    old_close = server.close
+
+    def new_close():
+        import traceback
+        traceback.print_stack()
+        old_close()
+    server.close = new_close
+    old_wait_closed = server.wait_closed
+
+    async def new_wait_closed():
+        import traceback
+        traceback.print_stack()
+        await old_wait_closed()
+
+    server.wait_closed = new_wait_closed
+
     try:
-        asyncio.get_event_loop().run_forever()
+        while True:
+            asyncio.get_event_loop().run_until_complete(asyncio.sleep(10))
+            print(server)
+        # asyncio.get_event_loop().run_forever()
     except KeyboardInterrupt:
         import objgraph
         objgraph.show_most_common_types(limit=50)

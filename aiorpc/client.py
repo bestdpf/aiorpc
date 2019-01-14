@@ -6,7 +6,7 @@ import logging
 from aiorpc.connection import Connection
 from aiorpc.log import rootLogger
 from aiorpc.constants import MSGPACKRPC_RESPONSE, MSGPACKRPC_REQUEST, BACKGROUND_RECV_INTERVAL, TRY_CONNECT_TIME
-from aiorpc.exceptions import RPCProtocolError, RPCError, EnhancedRPCError, CtrlRPCError
+from aiorpc.exceptions import RPCProtocolError, RPCError, EnhancedRPCError, CtrlRPCError, RPCIOError
 from concurrent.futures._base import CancelledError
 
 __all__ = ['RPCClient']
@@ -219,7 +219,7 @@ class RPCClient:
                 raise e
 
             if response is None:
-                raise IOError("Connection closed")
+                raise RPCIOError("Connection closed")
 
             if type(response) != tuple:
                 logging.debug('Protocol error, received unexpected data: {}'.format(response))
@@ -244,7 +244,7 @@ class RPCClient:
             print(f'process task is cancelled')
             self.close()
             pass
-        except IOError:
+        except RPCIOError:
             print(f'connection lost')
             self.close()
             pass

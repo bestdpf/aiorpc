@@ -1,19 +1,23 @@
 # -*- coding: utf-8 -*-
 
 
-class RPCProtocolError(Exception):
-    pass
-
-
-class MethodNotFoundError(Exception):
-    pass
-
-
 class RPCError(Exception):
     pass
 
 
-class EnhancedRPCError(Exception):
+class RPCIOError(RPCError):
+    pass
+
+
+class RPCProtocolError(RPCError):
+    pass
+
+
+class MethodNotFoundError(RPCError):
+    pass
+
+
+class EnhancedRPCError(RPCError):
     def __init__(self, parent, message):
         self.parent = parent
         self.message = message
@@ -21,7 +25,7 @@ class EnhancedRPCError(Exception):
         Exception.__init__(self, "{0}: {1}".format(parent, message))
 
 
-class CtrlRPCError(Exception):
+class CtrlRPCError(RPCError):
     def __init__(self, parent, message):
         self.parent = parent
         self.message = message
@@ -29,5 +33,5 @@ class CtrlRPCError(Exception):
         Exception.__init__(self, "{0}: {1}".format(parent, message))
 
 
-class MethodRegisteredError(Exception):
+class MethodRegisteredError(RPCError):
     pass

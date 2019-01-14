@@ -8,6 +8,8 @@ from aiorpc.constants import MSGPACKRPC_REQUEST, MSGPACKRPC_RESPONSE
 from aiorpc.exceptions import MethodNotFoundError, RPCProtocolError, MethodRegisteredError
 from aiorpc.connection import Connection
 from aiorpc.log import rootLogger
+from aiorpc.exceptions import RPCIOError
+
 
 __all__ = ['register', 'msgpack_init', 'set_timeout', 'serve', 'register_class']
 
@@ -129,6 +131,7 @@ async def _send_result(conn, result, msg_id):
         traceback.print_exc()
         # here is dangerous, as upper application transaction may rely on the result.
         # This should never happen if we want something like distributed transaction!!!!
+        print('rpc get ret, but cannot send back to client')
         _logger.error("Exception {} raised when _send_result {} to {}".format(
             str(e), str(result), conn.writer.get_extra_info("peername")
         ))
@@ -243,9 +246,13 @@ async def serve(reader, writer):
         req = None
         try:
             req = await conn.recvall()
-        except IOError as ie:
+        except (RPCIOError, ConnectionError) as ie:
+            print(f'server io error')
             break
         except Exception as e:
+            print(f'unknow exception')
+            import traceback
+            traceback.print_exc()
             conn.reader.set_exception(e)
             raise e
 

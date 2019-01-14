@@ -3,6 +3,8 @@
 import asyncio
 from aiorpc.log import rootLogger
 from aiorpc.constants import SOCKET_RECV_SIZE
+from aiorpc.exceptions import *
+
 
 __all__ = ['Connection']
 _logger = rootLogger.getChild(__name__)
@@ -44,7 +46,7 @@ class Connection:
             # print(f'recv data {data}')
             if not data:
                 # print('error')
-                raise IOError('Connection to {} closed'.format(self.peer))
+                raise RPCIOError('Connection to {} closed'.format(self.peer))
             self.unpacker.feed(data)
             try:
                 req = next(self.unpacker)
